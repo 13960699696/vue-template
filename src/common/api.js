@@ -1,7 +1,7 @@
 export default {
     //-------------------基础信息模块-------------------------------
-    BaseModel: {
+    Authentication: {
         //-------------------基础信息-------------------------------
-        crudBase: '/Base', //增删改查
+        GetToken: '/Authentication/requestToken', //增删改查
     },
 }

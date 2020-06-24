@@ -5,8 +5,11 @@ import {
     Loading,
     Message
 } from 'element-ui';
-//import VueCookies from 'vue-cookies'
+import store from '../store';
 import router from '@/router'
+import moment from "moment";
+
+//加载窗口
 const loading = {
     loadingInstance: null, // Loading 实例
     // 打开加载
@@ -30,17 +33,29 @@ const loading = {
         this.loadingInstance = null
     }
 }
+//5秒超时
 axios.defaults.timeout = 5000;
-
+//基础域名
 axios.defaults.baseURL = process.env.VUE_APP_SERVICE_URL; //填写域名
-
+//保存上一次请求地址
+window.PerRequest = {}
+//权限过期重新请求数据
+async function RedirectUrl() {
+    var res = await axios({
+        method: window.PerRequest.method,
+        url: window.PerRequest.url,
+        params: window.PerRequest.params,
+        data: window.PerRequest.data
+    });
+    return res;
+};
 //http request 拦截器  客户端给服务端 的数据 
 axios.interceptors.request.use(
     config => {
         // 打开加载窗口
         loading.open()
         config.headers.common = {
-            //'Authorization': 'Bearer' + ' ' + VueCookies.get('token'),
+            'Authorization': 'Bearer' + ' ' + localStorage.getItem('TokenStr'),
             'version': '1.0',
             'Content-Type': 'application/json;charset=UTF-8'
         }
@@ -62,7 +77,7 @@ axios.interceptors.request.use(
                 return test2;
             }]
         }
-
+        window.PerRequest = config
         return config;
     },
     error => {
@@ -80,11 +95,12 @@ axios.interceptors.response.use(response => {
     // 关闭加载窗口
     loading.close()
     if (response.status === 200) {
+        //每次请求成功续期token过期时间
+        store.dispatch('updateExpires', { Expires: moment(new Date()).add(30, 'm').toDate() })
         return Promise.resolve(response);
     } else {
         return Promise.reject(response);
     }
-    // return response
 }, err => {
     if (err && err.response) {
         var errorMsg = '';
@@ -93,10 +109,25 @@ axios.interceptors.response.use(response => {
                 errorMsg = '错误请求';
                 break;
             case 401:
-                errorMsg = '未授权，请重新登录';
-                router.push({
-                    path: `/login`
-                })
+                //判断过期时间是否大于当前时间
+                if (store.state.Expires > new Date()) {
+                    //更新token和过期时间
+                    axios.post('/Authentication/requestToken', JSON.parse(localStorage.getItem("user")))
+                        .then((res) => {
+                            //存储token
+                            localStorage.setItem("TokenStr", res.data.data.TokenStr);
+                            //存储token过期时间
+                            store.dispatch('updateExpires', { Expires: new Date(res.data.data.Expires) })
+                        })
+                    //请求原本路由返回数据
+                    var res = RedirectUrl();
+                    return Promise.resolve(res);
+                } else {
+                    errorMsg = '未授权，请重新登录';
+                    router.push({
+                        path: `/login`
+                    })
+                }
                 break;
             case 403:
                 errorMsg = '拒绝访问';
@@ -129,7 +160,7 @@ axios.interceptors.response.use(response => {
                 errorMsg = 'http版本不支持该请求';
                 break;
             default:
-                errorMsg =`连接错误${err.response.status}`
+                errorMsg = `连接错误${err.response.status}`
         }
     } else {
         errorMsg = '连接到服务器失败';
@@ -143,6 +174,7 @@ axios.interceptors.response.use(response => {
 
     return Promise.resolve(err.response)
 })
+
 //axio的crud方法
 export default {
     post(url, params) {

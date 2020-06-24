@@ -5,6 +5,8 @@ import store from './store';
 //引入api和axio
 import axios from 'common/axios';
 import api from 'common/api';
+import moment from 'moment'//导入文件 
+Vue.prototype.$moment = moment;
 Vue.prototype.$axios = axios;
 Vue.prototype.$api = api;
 //导入全局样式文件

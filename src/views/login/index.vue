@@ -5,11 +5,9 @@
     <el-form-item>
       <el-input type="text" v-model="loginForm.username" auto-complete="off" placeholder="账号"></el-input>
     </el-form-item>
-
     <el-form-item>
       <el-input type="password" v-model="loginForm.password" auto-complete="off" placeholder="密码"></el-input>
     </el-form-item>
-
     <el-form-item style="width: 100%">
       <el-button
         type="primary"
@@ -22,30 +20,32 @@
 </template>
 
 <script>
+import { mapActions } from "vuex";
 export default {
-  name: "Login",
+  name: "login",
   data() {
     return {
       loginForm: {
         username: "",
         password: ""
-      },
-      responseResult: []
+      }
     };
   },
   methods: {
+    ...mapActions({
+      updateExpires: "updateExpires"
+    }),
     login() {
-      //   this.$axios
-      //     .post("/login", {
-      //       username: this.loginForm.username,
-      //       password: this.loginForm.password
-      //     })
-      //     .then(successResponse => {
-      //       if (successResponse.data.code === 200) {
-      //         this.$router.replace({ path: "/index" });
-      //       }
-      //     })
-      //     .catch(failResponse => {});
+      this.$axios
+        .post(this.$api.Authentication.GetToken, this.loginForm)
+        .then(res => {
+          //存储token
+          localStorage.setItem("TokenStr", res.TokenStr);
+          localStorage.setItem("user", JSON.stringify(this.loginForm));
+          //存储token过期时间
+          this.updateExpires({Expires:new Date(res.Expires)})
+        })
+        .catch(failres => {});
     }
   }
 };
